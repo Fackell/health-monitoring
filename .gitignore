@@ -27,3 +27,9 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.swp
+
+# AI assistant configuration
+.agents/
+.claude/
+.cursor/
+.devin/

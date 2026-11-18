@@ -1,0 +1,104 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ActivityType {
+  WALKING
+  RUNNING
+  CYCLING
+  SWIMMING
+  STRENGTH_TRAINING
+  OTHER
+}
+
+enum GoalType {
+  STEPS
+  CALORIES
+  DISTANCE
+  WORKOUTS
+}
+
+model User {
+  id            String         @id @default(uuid()) @db.Uuid
+  email         String         @unique
+  passwordHash  String
+  fullName      String
+  role          UserRole       @default(USER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  activities    Activity[]
+  healthMetrics HealthMetric[]
+  goals         Goal[]
+  dailyStats    DailyStat[]
+}
+
+model Activity {
+  id              String       @id @default(uuid()) @db.Uuid
+  userId          String       @db.Uuid
+  type            ActivityType
+  durationMinutes Int
+  distanceKm      Float?
+  caloriesBurned  Int?
+  notes           String?
+  startedAt       DateTime
+  createdAt       DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags Tag[]
+}
+
+model HealthMetric {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @db.Uuid
+  weightKg          Float?
+  heartRate         Int?
+  systolicPressure  Int?
+  diastolicPressure Int?
+  sleepHours        Float?
+  measuredAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Goal {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  type         GoalType
+  targetValue  Float
+  currentValue Float    @default(0)
+  startDate    DateTime
+  endDate      DateTime?
+  isCompleted  Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DailyStat {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  date           DateTime @db.Date
+  steps          Int      @default(0)
+  caloriesBurned Int      @default(0)
+  activeMinutes  Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model Tag {
+  id         String     @id @default(uuid()) @db.Uuid
+  name       String     @unique
+  activities Activity[]
+}

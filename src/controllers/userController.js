@@ -1,81 +1,14 @@
 
 import prisma from "../utils/prisma.js";
-import bcrypt from "bcryptjs";
 
 // Перевірка формату ID
 const isValidId = (id) => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 };
 
-// Створення користувача
-export const createUser = async (req, res) => {
-  try {
-    const { email, password, fullName } = req.body;
-
-    if (
-      typeof email !== "string" ||
-      typeof password !== "string" ||
-      typeof fullName !== "string" ||
-      !email.trim() ||
-      !fullName.trim()
-    ) {
-      return res.status(400).json({
-        status: "error",
-        message: "Необхідно вказати email, password та fullName",
-      });
-    }
-
-    if (password.length < 8) {
-      return res.status(400).json({
-        status: "error",
-        message: "Пароль повинен містити щонайменше 8 символів",
-      });
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      return res.status(400).json({
-        status: "error",
-        message: "Некоректний формат email",
-      });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        passwordHash,
-        fullName: fullName.trim(),
-      },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        role: true,
-        createdAt: true,
-      },
-    });
-
-    res.status(201).json({
-      status: "success",
-      data: user,
-    });
-  } catch (error) {
-    if (error.code === "P2002") {
-      return res.status(409).json({
-        status: "error",
-        message: "Користувач із таким email вже існує",
-      });
-    }
-
-    console.error(error);
-    res.status(500).json({
-      status: "error",
-      message: "Помилка під час створення користувача",
-    });
-  }
+// Перевірка прав доступу до профілю
+const canAccessUser = (req, id) => {
+  return req.user.role === "ADMIN" || req.user.userId === id;
 };
 
 // Отримання всіх користувачів
@@ -120,6 +53,13 @@ export const getUserById = async (req, res) => {
       });
     }
 
+    if (!canAccessUser(req, id)) {
+      return res.status(403).json({
+        status: "error",
+        message: "Немає доступу до цього профілю",
+      });
+    }
+
     const user = await prisma.user.findUnique({
       where: { id },
       select: {
@@ -155,7 +95,7 @@ export const getUserById = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { email, fullName, password } = req.body;
+    const { email, fullName } = req.body;
 
     if (!isValidId(id)) {
       return res.status(400).json({
@@ -164,15 +104,26 @@ export const updateUser = async (req, res) => {
       });
     }
 
+    if (!canAccessUser(req, id)) {
+      return res.status(403).json({
+        status: "error",
+        message: "Немає прав для редагування цього профілю",
+      });
+    }
+
     const data = {};
 
     if (email !== undefined) {
-      if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      if (
+        typeof email !== "string" ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+      ) {
         return res.status(400).json({
           status: "error",
           message: "Некоректний email",
         });
       }
+
       data.email = email.trim().toLowerCase();
     }
 
@@ -183,17 +134,8 @@ export const updateUser = async (req, res) => {
           message: "Ім'я не може бути порожнім",
         });
       }
-      data.fullName = fullName.trim();
-    }
 
-    if (password !== undefined) {
-      if (typeof password !== "string" || password.length < 8) {
-        return res.status(400).json({
-          status: "error",
-          message: "Пароль повинен містити щонайменше 8 символів",
-        });
-      }
-      data.passwordHash = await bcrypt.hash(password, 10);
+      data.fullName = fullName.trim();
     }
 
     if (Object.keys(data).length === 0) {
@@ -251,6 +193,13 @@ export const deleteUser = async (req, res) => {
       return res.status(400).json({
         status: "error",
         message: "Некоректний ID користувача",
+      });
+    }
+
+    if (!canAccessUser(req, id)) {
+      return res.status(403).json({
+        status: "error",
+        message: "Немає прав для видалення цього профілю",
       });
     }
 

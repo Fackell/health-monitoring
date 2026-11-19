@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -29,18 +28,20 @@ enum GoalType {
 }
 
 model User {
-  id            String         @id @default(uuid()) @db.Uuid
-  email         String         @unique
-  passwordHash  String
-  fullName      String
-  role          UserRole       @default(USER)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   activities    Activity[]
   healthMetrics HealthMetric[]
   goals         Goal[]
   dailyStats    DailyStat[]
+  files         File[]
+  refreshTokens RefreshToken[]
 }
 
 model Activity {
@@ -54,7 +55,7 @@ model Activity {
   startedAt       DateTime
   createdAt       DateTime     @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags Tag[]
 }
 
@@ -72,14 +73,14 @@ model HealthMetric {
 }
 
 model Goal {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @db.Uuid
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
   type         GoalType
   targetValue  Float
-  currentValue Float    @default(0)
+  currentValue Float     @default(0)
   startDate    DateTime
   endDate      DateTime?
-  isCompleted  Boolean  @default(false)
+  isCompleted  Boolean   @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -101,4 +102,32 @@ model Tag {
   id         String     @id @default(uuid()) @db.Uuid
   name       String     @unique
   activities Activity[]
+}
+
+model File {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  originalName String
+  storageName  String   @unique
+  mimeType     String
+  sizeBytes    Int
+  path         String
+  uploadedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

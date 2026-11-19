@@ -13,11 +13,27 @@ const activityTypes = [
   "OTHER",
 ];
 
-// Create activity
+// Умови доступу до записів
+const getAccessFilter = (user) => {
+  return user.role === "ADMIN"
+    ? {}
+    : { userId: user.userId };
+};
+
+// Перевірка належності активності користувачу
+const findAccessibleActivity = async (id, user) => {
+  return prisma.activity.findFirst({
+    where: {
+      id,
+      ...getAccessFilter(user),
+    },
+  });
+};
+
+// Створення активності
 export const createActivity = async (req, res) => {
   try {
     const {
-      userId,
       type,
       durationMinutes,
       distanceKm,
@@ -25,13 +41,6 @@ export const createActivity = async (req, res) => {
       notes,
       startedAt,
     } = req.body;
-
-    if (!isValidId(userId)) {
-      return res.status(400).json({
-        status: "error",
-        message: "Некоректний ID користувача",
-      });
-    }
 
     if (!activityTypes.includes(type)) {
       return res.status(400).json({
@@ -89,7 +98,7 @@ export const createActivity = async (req, res) => {
 
     const activity = await prisma.activity.create({
       data: {
-        userId,
+        userId: req.user.userId,
         type,
         durationMinutes,
         distanceKm,
@@ -99,38 +108,136 @@ export const createActivity = async (req, res) => {
       },
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       status: "success",
       data: activity,
     });
   } catch (error) {
-    if (error.code === "P2003") {
-      return res.status(404).json({
-        status: "error",
-        message: "Користувача не знайдено",
-      });
-    }
-
     console.error(error);
 
-    res.status(500).json({
+    return res.status(500).json({
       status: "error",
       message: "Помилка під час створення активності",
     });
   }
 };
 
-// Get all activities
+// Отримання активностей із пагінацією та фільтрами
 export const getActivities = async (req, res) => {
   try {
-    const activities = await prisma.activity.findMany({
-      orderBy: {
-        startedAt: "desc",
-      },
-    });
+    const {
+      page = "1",
+      limit = "10",
+      type,
+      search,
+      from,
+      to,
+    } = req.query;
+
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+
+    if (
+      !Number.isInteger(pageNumber) ||
+      pageNumber < 1 ||
+      !Number.isInteger(limitNumber) ||
+      limitNumber < 1 ||
+      limitNumber > 100
+    ) {
+      return res.status(400).json({
+        status: "error",
+        message: "Некоректні параметри пагінації",
+      });
+    }
+
+    if (type && !activityTypes.includes(type)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Некоректний тип активності",
+      });
+    }
+
+    const filters = {
+      ...getAccessFilter(req.user),
+    };
+
+    if (type) {
+      filters.type = type;
+    }
+
+    if (search) {
+      filters.notes = {
+        contains: search,
+        mode: "insensitive",
+      };
+    }
+
+    if (from || to) {
+      filters.startedAt = {};
+
+      if (from) {
+        const fromDate = new Date(from);
+
+        if (Number.isNaN(fromDate.getTime())) {
+          return res.status(400).json({
+            status: "error",
+            message: "Некоректна початкова дата",
+          });
+        }
+
+        filters.startedAt.gte = fromDate;
+      }
+
+      if (to) {
+        const toDate = new Date(to);
+
+        if (Number.isNaN(toDate.getTime())) {
+          return res.status(400).json({
+            status: "error",
+            message: "Некоректна кінцева дата",
+          });
+        }
+
+        filters.startedAt.lte = toDate;
+      }
+
+      if (
+        filters.startedAt.gte &&
+        filters.startedAt.lte &&
+        filters.startedAt.gte > filters.startedAt.lte
+      ) {
+        return res.status(400).json({
+          status: "error",
+          message: "Початкова дата не може бути пізніше кінцевої",
+        });
+      }
+    }
+
+    const skip = (pageNumber - 1) * limitNumber;
+
+    const [activities, total] = await Promise.all([
+      prisma.activity.findMany({
+        where: filters,
+        orderBy: {
+          startedAt: "desc",
+        },
+        skip,
+        take: limitNumber,
+      }),
+
+      prisma.activity.count({
+        where: filters,
+      }),
+    ]);
 
     res.status(200).json({
       status: "success",
+      pagination: {
+        page: pageNumber,
+        limit: limitNumber,
+        total,
+        totalPages: Math.ceil(total / limitNumber),
+      },
       results: activities.length,
       data: activities,
     });
@@ -144,7 +251,7 @@ export const getActivities = async (req, res) => {
   }
 };
 
-// Get activity by ID
+// Отримання активності за ID
 export const getActivityById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -156,9 +263,7 @@ export const getActivityById = async (req, res) => {
       });
     }
 
-    const activity = await prisma.activity.findUnique({
-      where: { id },
-    });
+    const activity = await findAccessibleActivity(id, req.user);
 
     if (!activity) {
       return res.status(404).json({
@@ -181,10 +286,11 @@ export const getActivityById = async (req, res) => {
   }
 };
 
-// Update activity
+// Оновлення активності
 export const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
+
     const {
       type,
       durationMinutes,
@@ -201,6 +307,15 @@ export const updateActivity = async (req, res) => {
       });
     }
 
+    const existingActivity = await findAccessibleActivity(id, req.user);
+
+    if (!existingActivity) {
+      return res.status(404).json({
+        status: "error",
+        message: "Запис активності не знайдено",
+      });
+    }
+
     const data = {};
 
     if (type !== undefined) {
@@ -210,6 +325,7 @@ export const updateActivity = async (req, res) => {
           message: "Некоректний тип активності",
         });
       }
+
       data.type = type;
     }
 
@@ -220,6 +336,7 @@ export const updateActivity = async (req, res) => {
           message: "Некоректна тривалість",
         });
       }
+
       data.durationMinutes = durationMinutes;
     }
 
@@ -235,6 +352,7 @@ export const updateActivity = async (req, res) => {
           message: "Некоректна дистанція",
         });
       }
+
       data.distanceKm = distanceKm;
     }
 
@@ -248,6 +366,7 @@ export const updateActivity = async (req, res) => {
           message: "Некоректна кількість калорій",
         });
       }
+
       data.caloriesBurned = caloriesBurned;
     }
 
@@ -258,6 +377,7 @@ export const updateActivity = async (req, res) => {
           message: "Нотатки повинні бути текстом",
         });
       }
+
       data.notes = notes;
     }
 
@@ -282,7 +402,10 @@ export const updateActivity = async (req, res) => {
     }
 
     const activity = await prisma.activity.update({
-      where: { id },
+      where: {
+        id,
+        ...getAccessFilter(req.user),
+      },
       data,
     });
 
@@ -307,7 +430,7 @@ export const updateActivity = async (req, res) => {
   }
 };
 
-// Delete activity
+// Видалення активності
 export const deleteActivity = async (req, res) => {
   try {
     const { id } = req.params;
@@ -319,8 +442,20 @@ export const deleteActivity = async (req, res) => {
       });
     }
 
+    const activity = await findAccessibleActivity(id, req.user);
+
+    if (!activity) {
+      return res.status(404).json({
+        status: "error",
+        message: "Запис активності не знайдено",
+      });
+    }
+
     await prisma.activity.delete({
-      where: { id },
+      where: {
+        id,
+        ...getAccessFilter(req.user),
+      },
     });
 
     res.status(200).json({

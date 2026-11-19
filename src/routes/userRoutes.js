@@ -2,22 +2,27 @@
 import { Router } from "express";
 
 import {
-  createUser,
   getUsers,
   getUserById,
   updateUser,
   deleteUser,
 } from "../controllers/userController.js";
 
+import {
+  authenticateToken,
+  authorize,
+} from "../middleware/authMiddleware.js";
+
 const router = Router();
 
-router.route("/")
-  .post(createUser)
-  .get(getUsers);
+// Перегляд усіх користувачів — лише адміністратор
+router.get("/", authenticateToken, authorize("ADMIN"), getUsers);
 
+// Перегляд, редагування та видалення користувача
+// — після авторизації (перевірку власника додамо в контролері)
 router.route("/:id")
-  .get(getUserById)
-  .put(updateUser)
-  .delete(deleteUser);
+  .get(authenticateToken, getUserById)
+  .put(authenticateToken, updateUser)
+  .delete(authenticateToken, deleteUser);
 
 export default router;

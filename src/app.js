@@ -4,15 +4,42 @@ import cors from "cors";
 import healthRoutes from "./routes/healthRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import activityRoutes from "./routes/activityRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import fileRoutes from "./routes/fileRoutes.js";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./config/swagger.js";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+
+
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api/files", fileRoutes);
 
 app.use("/api/users", userRoutes);
 app.use("/api/activities", activityRoutes);
 app.use("/api/health", healthRoutes);
+
+app.use(helmet());
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    status: "error",
+    message: "Забагато запитів. Спробуйте пізніше.",
+  },
+});
+
+app.use(cors());
+app.use(express.json());
+
+app.use("/api/auth", authLimiter, authRoutes);
 
 app.get("/", (req, res) => {
   res.status(200).json({

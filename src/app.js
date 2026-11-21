@@ -13,9 +13,6 @@ import rateLimit from "express-rate-limit";
 
 const app = express();
 
-
-
-
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/files", fileRoutes);
 

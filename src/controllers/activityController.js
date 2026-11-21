@@ -13,14 +13,12 @@ const activityTypes = [
   "OTHER",
 ];
 
-// Умови доступу до записів
 const getAccessFilter = (user) => {
   return user.role === "ADMIN"
     ? {}
     : { userId: user.userId };
 };
 
-// Перевірка належності активності користувачу
 const findAccessibleActivity = async (id, user) => {
   return prisma.activity.findFirst({
     where: {
@@ -30,7 +28,6 @@ const findAccessibleActivity = async (id, user) => {
   });
 };
 
-// Створення активності
 export const createActivity = async (req, res) => {
   try {
     const {
@@ -108,6 +105,10 @@ export const createActivity = async (req, res) => {
       },
     });
 
+    req.app.get("io")
+      .to(`user:${req.user.userId}`)
+      .emit("activity:created", activity);
+
     return res.status(201).json({
       status: "success",
       data: activity,
@@ -122,7 +123,6 @@ export const createActivity = async (req, res) => {
   }
 };
 
-// Отримання активностей із пагінацією та фільтрами
 export const getActivities = async (req, res) => {
   try {
     const {
@@ -251,7 +251,6 @@ export const getActivities = async (req, res) => {
   }
 };
 
-// Отримання активності за ID
 export const getActivityById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -286,7 +285,6 @@ export const getActivityById = async (req, res) => {
   }
 };
 
-// Оновлення активності
 export const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
@@ -409,6 +407,10 @@ export const updateActivity = async (req, res) => {
       data,
     });
 
+    req.app.get("io")
+      .to(`user:${activity.userId}`)
+      .emit("activity:updated", activity);
+
     res.status(200).json({
       status: "success",
       data: activity,
@@ -430,7 +432,6 @@ export const updateActivity = async (req, res) => {
   }
 };
 
-// Видалення активності
 export const deleteActivity = async (req, res) => {
   try {
     const { id } = req.params;
@@ -457,6 +458,10 @@ export const deleteActivity = async (req, res) => {
         ...getAccessFilter(req.user),
       },
     });
+
+    req.app.get("io")
+      .to(`user:${activity.userId}`)
+      .emit("activity:deleted", { id: activity.id });
 
     res.status(200).json({
       status: "success",

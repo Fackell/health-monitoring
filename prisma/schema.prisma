@@ -57,6 +57,8 @@ model Activity {
 
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags Tag[]
+  @@index([userId, startedAt])
+  @@index([userId, type, startedAt])
 }
 
 model HealthMetric {

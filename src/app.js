@@ -1,27 +1,29 @@
 
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+
 import healthRoutes from "./routes/healthRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import activityRoutes from "./routes/activityRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import fileRoutes from "./routes/fileRoutes.js";
+
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger.js";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 
 const app = express();
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.use("/api/files", fileRoutes);
-
-app.use("/api/users", userRoutes);
-app.use("/api/activities", activityRoutes);
-app.use("/api/health", healthRoutes);
-
+// Основні middleware
 app.use(helmet());
+app.use(cors());
+app.use(express.json());
 
+// Swagger
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Обмеження запитів авторизації
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 100,
@@ -33,10 +35,12 @@ const authLimiter = rateLimit({
   },
 });
 
-app.use(cors());
-app.use(express.json());
-
+// API-маршрути
 app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/files", fileRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/activities", activityRoutes);
+app.use("/api/health", healthRoutes);
 
 app.get("/", (req, res) => {
   res.status(200).json({

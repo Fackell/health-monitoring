@@ -1,6 +1,8 @@
 
 import swaggerJsdoc from "swagger-jsdoc";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const options = {
   definition: {
     openapi: "3.0.0",
@@ -11,8 +13,10 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:3000",
-        description: "Локальний сервер",
+        url: isProduction
+          ? "https://health-monitoring-grk9.onrender.com"
+          : "http://localhost:3000",
+        description: isProduction ? "Production server" : "Локальний сервер",
       },
     ],
     components: {

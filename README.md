@@ -1,9 +1,10 @@
-﻿# Health Monitoring API
+﻿# Health Monitoring
 
-Серверна частина вебзастосунку для моніторингу фізичної активності та показників здоров'я.
+Вебзастосунок для моніторингу фізичної активності та показників здоров'я. Проєкт складається із серверної частини на Node.js та клієнтського інтерфейсу на React.
 
 ## Технології
 
+### Backend
 - Node.js та Express.js
 - PostgreSQL
 - Prisma ORM
@@ -14,8 +15,17 @@
 - Swagger / OpenAPI для документації API
 - Helmet та express-rate-limit для базового захисту
 
+### Frontend
+- React та TypeScript
+- Vite
+- Tailwind CSS
+- React Router
+- Axios
+- ESLint та Prettier
+
 ## Реалізовані можливості
 
+### Серверна частина
 - Реєстрація, вхід, оновлення та відкликання токенів.
 - Розмежування доступу за ролями USER та ADMIN.
 - CRUD-операції для користувачів та активностей.
@@ -27,11 +37,46 @@
 - Індекси PostgreSQL для оптимізації запитів до активностей.
 - Swagger-документація, захисні HTTP-заголовки та обмеження частоти запитів авторизації.
 
+### Клієнтська частина
+- Адаптивний інтерфейс на React та TypeScript.
+- Маршрутизація між сторінками.
+- Повторно використовувані UI-компоненти.
+- Світла та темна теми оформлення.
+- Збереження налаштування теми.
+- Налаштування Axios для взаємодії з API.
+- Обробка помилок за допомогою Error Boundary.
+- Типізація даних API та допоміжні функції форматування.
+
 ## Посилання
 
+- **GitHub:** https://github.com/Fackell/health-monitoring
 - **Production API:** https://health-monitoring-grk9.onrender.com
 - **Swagger:** https://health-monitoring-grk9.onrender.com/api-docs
 - **Health check:** https://health-monitoring-grk9.onrender.com/api/health
+
+## Структура проєкту
+
+```text
+health-monitoring/
+├── docs/                  # Документація та звіти лабораторних
+├── frontend/              # React-клієнт
+│   ├── public/
+│   ├── src/
+│   │   ├── components/    # UI-компоненти та компоненти макета
+│   │   ├── hooks/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   ├── types/
+│   │   └── utils/
+│   ├── .env.example
+│   └── package.json
+├── prisma/                # Схема та міграції бази даних
+├── src/                   # Серверна частина
+├── tests/                 # Автоматичні тести
+├── .env.example
+├── .gitignore
+└── README.md
+```
 
 ## Локальний запуск
 
@@ -41,11 +86,18 @@
 - npm
 - PostgreSQL
 
-### Встановлення
+### Backend
+
+Клонуйте репозиторій:
 
 ```bash
 git clone https://github.com/Fackell/health-monitoring.git
 cd health-monitoring
+```
+
+Встановіть залежності:
+
+```bash
 npm ci
 ```
 
@@ -86,9 +138,62 @@ npm start
 
 Після запуску API доступне за адресою `http://localhost:3000`, документація — `http://localhost:3000/api-docs`.
 
+### Frontend
+
+Відкрийте окремий термінал та перейдіть до каталогу клієнтської частини:
+
+```bash
+cd frontend
+```
+
+Встановіть залежності:
+
+```bash
+npm ci
+```
+
+Створіть файл `.env.development` на основі `.env.example` та налаштуйте адресу API:
+
+```env
+VITE_API_URL=http://localhost:3000/api
+VITE_APP_NAME=Health Monitoring
+```
+
+Для production використовується файл `.env.production` з адресою розгорнутого API.
+
+Запуск у режимі розробки:
+
+```bash
+npm run dev
+```
+
+Перевірка коду:
+
+```bash
+npm run lint
+```
+
+Форматування:
+
+```bash
+npm run format
+```
+
+Production-збірка:
+
+```bash
+npm run build
+```
+
+Перегляд production-збірки:
+
+```bash
+npm run preview
+```
+
 ## Тестування
 
-Запустити автоматичні тести:
+Для запуску автоматичних тестів серверної частини:
 
 ```bash
 npm test
@@ -96,7 +201,7 @@ npm test
 
 Тести перевіряють валідацію реєстрації та входу, захисні HTTP-заголовки, JWT-авторизацію Socket.IO та доставку подій у персональну кімнату.
 
-## Основні маршрути
+## Основні маршрути API
 
 | Маршрут | Призначення |
 |---|---|
@@ -123,7 +228,7 @@ npm test
 
 ## Розгортання
 
-Застосунок розгорнуто на Render, база даних PostgreSQL розміщена на Neon.
+Серверну частину розгорнуто на Render, база даних PostgreSQL розміщена на Neon.
 
 Build command:
 
@@ -148,6 +253,20 @@ npm start
 Файлова система без постійного диска є тимчасовою. Тому завантажені на локальний диск файли не слід вважати постійно збереженими після перезапуску чи повторного розгортання. Для production потрібне зовнішнє файлове сховище.
 
 Умови безкоштовних тарифів Render та Neon можуть змінюватися. Перед тривалим використанням необхідно перевіряти актуальні обмеження провайдерів.
+
+## Скріншоти інтерфейсу
+
+### Головна сторінка
+
+![Головна сторінка](frontend/screenshots/home.png)
+
+### Темна тема
+
+![Темна тема](frontend/screenshots/white-theme.png)
+
+### Сторінка про проєкт
+
+![Сторінка про проєкт](frontend/screenshots/about.png)
 
 ## Додаткова документація
 

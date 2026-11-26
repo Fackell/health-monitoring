@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 
 import Button from '../components/common/Button';
 import DataTable from '../components/common/DataTable';
+import SearchableDropdown from '../components/common/SearchableDropdown';
 import Skeleton from '../components/common/Skeleton';
 import { useActivities, useDeleteActivity } from '../hooks/useActivities';
 import useDebounce from '../hooks/useDebounce';
@@ -17,6 +18,14 @@ const activityLabels: Record<ActivityType, string> = {
   STRENGTH_TRAINING: 'Силове тренування',
   OTHER: 'Інше',
 };
+
+const activityOptions = [
+  { label: 'Усі типи', value: '' },
+  ...Object.entries(activityLabels).map(([value, label]) => ({
+    label,
+    value,
+  })),
+];
 
 type SortOption =
   | 'date-desc'
@@ -34,6 +43,8 @@ export default function ActivitiesPage() {
   const [type, setType] = useState('');
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<SortOption>('date-desc');
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const debouncedSearch = useDebounce(searchInput.trim(), 500);
 
@@ -73,15 +84,20 @@ export default function ActivitiesPage() {
     return activities;
   }, [data?.data, sortBy]);
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Ви дійсно хочете видалити цей запис?')) {
-      return;
-    }
+  const handleDelete = async () => {
+    if (!pendingDeleteId) return;
 
-    await deleteMutation.mutateAsync(id);
+    setDeleteError('');
 
-    if (data && data.data.length === 1 && page > 1) {
-      setPage((current) => current - 1);
+    try {
+      await deleteMutation.mutateAsync(pendingDeleteId);
+      setPendingDeleteId(null);
+
+      if (data && data.data.length === 1 && page > 1) {
+        setPage((current) => current - 1);
+      }
+    } catch {
+      setDeleteError('Не вдалося видалити активність. Спробуйте ще раз.');
     }
   };
 
@@ -119,21 +135,15 @@ export default function ActivitiesPage() {
           className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
         />
 
-        <select
+        <SearchableDropdown
+          options={activityOptions}
           value={type}
-          onChange={(event) => {
-            setType(event.target.value);
+          onChange={(value) => {
+            setType(value);
             setPage(1);
           }}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
-        >
-          <option value="">Усі типи</option>
-          {Object.entries(activityLabels).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+          placeholder="Усі типи"
+        />
 
         <select
           value={sortBy}
@@ -219,7 +229,10 @@ export default function ActivitiesPage() {
 
                       <button
                         type="button"
-                        onClick={() => handleDelete(activity.id)}
+                        onClick={() => {
+                          setDeleteError('');
+                          setPendingDeleteId(activity.id);
+                        }}
                         disabled={deleteMutation.isPending}
                         className="font-medium text-red-600 hover:underline disabled:opacity-50"
                       >
@@ -258,6 +271,61 @@ export default function ActivitiesPage() {
             </div>
           </div>
         </>
+      )}
+
+      {pendingDeleteId && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !deleteMutation.isPending) {
+              setPendingDeleteId(null);
+              setDeleteError('');
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-dialog-title"
+            className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+          >
+            <h2 id="delete-dialog-title" className="text-xl font-semibold">
+              Видалити активність?
+            </h2>
+
+            <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+              Ви дійсно хочете видалити цей запис? Цю дію неможливо скасувати.
+            </p>
+
+            {deleteError && (
+              <p className="mt-3 text-sm text-red-600" role="alert">
+                {deleteError}
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  setPendingDeleteId(null);
+                  setDeleteError('');
+                }}
+              >
+                Скасувати
+              </Button>
+
+              <Button
+                type="button"
+                disabled={deleteMutation.isPending}
+                onClick={() => void handleDelete()}
+              >
+                {deleteMutation.isPending ? 'Видалення...' : 'Видалити'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
